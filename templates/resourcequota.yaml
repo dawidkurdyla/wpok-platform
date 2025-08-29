@@ -1,0 +1,16 @@
+{{- if and .Values.wpokOperator.enabled .Values.wpokOperator.resourceQuota.enabled }}
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: wpok-resource-quota
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: {{ include "wpok.fullname" . }}
+    app.kubernetes.io/component: operator
+spec:
+  hard:
+    requests.cpu: {{ .Values.wpokOperator.resourceQuota.cpuRequests | quote }}
+    requests.memory: {{ .Values.wpokOperator.resourceQuota.memoryRequests | quote }}
+    limits.cpu: {{ .Values.wpokOperator.resourceQuota.cpuLimits | quote }}
+    limits.memory: {{ .Values.wpokOperator.resourceQuota.memoryLimits | quote }}
+{{- end }}

@@ -1,0 +1,141 @@
+{{- if .Values.crds.create }}
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: workerpools.hyperflow.agh.edu.pl
+  labels:
+    app.kubernetes.io/name: {{ include "wpok.fullname" . }}
+    app.kubernetes.io/component: operator
+spec:
+  group: hyperflow.agh.edu.pl
+  scope: Namespaced
+  names:
+    plural: workerpools
+    singular: workerpool
+    kind: WorkerPool
+    shortNames:
+      - wp
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                taskType:
+                  type: string
+                image:
+                  type: string
+                rabbitHostname:
+                  type: string
+                redisUrl:
+                  type: string
+                prometheusUrl:
+                  type: string
+                queue:
+                  type: object
+                  description: "Optional queue settings managed by the operator. If omitted, spec.taskType becomes the queue name."
+                  properties:
+                    name:
+                      type: string
+                      minLength: 1
+                      description: "If provided, overrides the default queue name (spec.taskType)."
+                    vhost:
+                      type: string
+                      default: "/"
+                      description: "RabbitMQ vhost; defaults to '/'."
+                    durable:
+                      type: boolean
+                      default: true
+                      description: "Whether the queue is durable."
+                    autoDelete:
+                      type: boolean
+                      default: false
+                      description: "Whether the queue is auto-deleted when no longer used."
+                    arguments:
+                      type: object
+                      default: {}
+                      x-kubernetes-preserve-unknown-fields: true
+                      description: "Arbitrary queue arguments (e.g., x-message-ttl, x-dead-letter-exchange)."
+                minReplicaCount:
+                  type: integer
+                  default: 0
+                maxReplicaCount:
+                  type: integer
+                  default: 50
+                initialResources:
+                  type: object
+                  properties:
+                    requests:
+                      type: object
+                      properties:
+                        cpu:
+                          type: string
+                        memory:
+                          type: string
+                      required:
+                        - cpu
+                        - memory
+                    limits:
+                      type: object
+                      properties:
+                        cpu:
+                          type: string
+                        memory:
+                          type: string
+                  required:
+                    - requests
+              required:
+                - taskType
+                - image
+                - rabbitHostname
+                - redisUrl
+                - prometheusUrl
+                - initialResources
+            status:
+              type: object
+              properties:
+                workerPoolName:
+                  type: string
+                conditions:
+                  type: array
+                  items:
+                    description: Condition to store the condition state
+                    type: object
+                    properties:
+                      message:
+                        type: string
+                      reason:
+                        type: string
+                      status:
+                        type: string
+                      type:
+                        type: string
+                      timestamp:
+                        type: string
+                    required:
+                      - status
+                      - type
+      additionalPrinterColumns:
+        - name: TaskType
+          type: string
+          jsonPath: .spec.taskType
+        - name: Queue
+          type: string
+          jsonPath: .spec.queue.name
+        - name: Min
+          type: integer
+          jsonPath: .spec.minReplicaCount
+        - name: Max
+          type: integer
+          jsonPath: .spec.maxReplicaCount
+        - name: Ready
+          type: string
+          jsonPath: .status.conditions[?(@.type=="Ready")].status
+{{- end }}

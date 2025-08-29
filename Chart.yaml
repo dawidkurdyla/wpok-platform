@@ -1,0 +1,42 @@
+apiVersion: v2
+name: wpok
+description: Helm chart for the WPOK platform (Worker‑Pool Operator and optional dependencies).
+
+# This chart installs the Worker Pool Operator along with optional
+# dependencies such as Prometheus, Keda, RabbitMQ, Redis and MinIO.
+# Each dependency can be enabled or disabled via values.yaml.
+
+type: application
+version: 0.1.0
+appVersion: 0.1.0
+
+dependencies:
+  # Monitoring stack (Prometheus, Alertmanager, Grafana, exporters)
+  - name: kube-prometheus-stack
+    version: 75.15.0
+    repository: https://prometheus-community.github.io/helm-charts
+    condition: kube-prometheus-stack.enabled
+
+  # Event based autoscaling (Keda)
+  - name: keda
+    version: 2.17.2
+    repository: https://kedacore.github.io/charts
+    condition: keda.enabled
+
+  # RabbitMQ message broker
+  - name: rabbitmq
+    version: 16.0.11
+    repository: https://charts.bitnami.com/bitnami
+    condition: rabbitmq.enabled
+
+  # Redis key/value store
+  - name: redis
+    version: 21.2.13
+    repository: https://charts.bitnami.com/bitnami
+    condition: redis.enabled
+
+  # S3 compatible storage (MinIO)
+  - name: minio
+    version: 17.0.21
+    repository: https://charts.bitnami.com/bitnami
+    condition: minio.enabled

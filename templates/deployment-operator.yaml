@@ -1,0 +1,81 @@
+{{- if .Values.wpokOperator.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker-pool-operator
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: {{ include "wpok.fullname" . }}
+    app.kubernetes.io/component: operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "wpok.fullname" . }}
+      app.kubernetes.io/component: operator
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "wpok.fullname" . }}
+        app.kubernetes.io/component: operator
+    spec:
+      serviceAccountName: worker-pool-operator
+      {{- with .Values.wpokOperator.nodeSelector }}
+      nodeSelector: {{ toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+        - name: templates
+          configMap:
+            name: worker-pool-operator-templates
+      containers:
+        - name: operator
+          image: {{ .Values.wpokOperator.image | quote }}
+          imagePullPolicy: {{ .Values.wpokOperator.imagePullPolicy }}
+          volumeMounts:
+            - name: templates
+              mountPath: /templates
+          env:
+            - name: KOPF_LOGLEVEL
+              value: {{ .Values.wpokOperator.kopfLogLevel | quote }}
+            - name: RABBIT_API
+              value: {{ include "wpok.rabbitmqApiUrl" . | quote }}
+            - name: RABBIT_VHOST
+              value: {{ .Values.wpokOperator.rabbitApi.vhost | quote }}
+            - name: RABBIT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: rabbit-admin
+                  key: username
+            - name: RABBIT_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: rabbit-admin
+                  key: password
+            - name: RABBIT_INSECURE
+              value: "0"
+            - name: WPOK_S3_ENDPOINT
+              value: {{ .Values.wpokOperator.s3.endpoint | quote }}
+            - name: WPOK_S3_FORCE_PATH_STYLE
+              value: {{ .Values.wpokOperator.s3.forcePathStyle | quote }}
+            - name: WPOK_S3_CONCURRENCY
+              value: {{ .Values.wpokOperator.s3.concurrency | quote }}
+            - name: WPOK_S3_RETRIES
+              value: {{ .Values.wpokOperator.s3.retries | quote }}
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: wpok-aws
+                  key: accessKey
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: wpok-aws
+                  key: secretKey
+            - name: AWS_DEFAULT_REGION
+              value: "us-east-1"
+          ports:
+            - name: metrics
+              containerPort: 8080
+          resources:
+            {{- toYaml .Values.wpokOperator.resources | nindent 12 }}
+{{- end }}

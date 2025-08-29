@@ -1,0 +1,17 @@
+{{- if and .Values.wpokOperator.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: worker-pool-operator-templates
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: {{ include "wpok.fullname" . }}
+    app.kubernetes.io/component: operator
+data:
+  deployment.yml: |-
+{{ tpl .Values.wpokOperator.templates.deployment . | indent 4 }}
+  scaledobject.yml: |-
+{{ tpl .Values.wpokOperator.templates.scaledobject . | indent 4 }}
+  prometheus-rule.yml: |-
+{{ tpl .Values.wpokOperator.templates.prometheusRule . | indent 4 }}
+{{- end }}

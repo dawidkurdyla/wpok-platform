@@ -1,0 +1,16 @@
+{{- if and .Values.wpokOperator.enabled .Values.wpokOperator.pvc.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nfs
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: {{ include "wpok.fullname" . }}
+    app.kubernetes.io/component: operator
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.wpokOperator.pvc.storage }}
+{{- end }}

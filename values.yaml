@@ -1,0 +1,392 @@
+# Default values for the WPOK chart.
+#
+# This file contains configuration options for the Worker‑Pool Operator and
+# optionally installs supporting services such as Prometheus, Keda, RabbitMQ,
+# Redis and MinIO. Most subcharts are disabled by default and can be enabled
+# by setting the corresponding `.enabled` flag to true. Sensible default
+# resource requests/limits are provided for a medium‑sized cluster; adjust
+# these values as needed for your environment.
+
+## Global flags ###############################################################
+
+# Namespace where the operator and its resources will be deployed.
+# By default this is the release namespace; override if needed.
+namespace: ""
+
+## Subchart configuration #####################################################
+
+kube-prometheus-stack:
+  enabled: false
+  grafana:
+    enabled: true
+  prometheus:
+    prometheusSpec:
+      # When these are false, the operator picks up PrometheusRules and
+      # ServiceMonitors automatically from Helm values rather than requiring
+      # explicit label selectors.  Recommended to leave false when using
+      # additional charts that register ServiceMonitors or rules.
+      ruleSelectorNilUsesHelmValues: false
+      serviceMonitorSelectorNilUsesHelmValues: false
+  # Default resource requests/limits for the core pods of the Prometheus stack.
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 400m
+      memory: 512Mi
+
+keda:
+  enabled: false
+  # Namespace that Keda watches for scaled objects.  Leave empty to watch all
+  # namespaces; set to the operator namespace for scoped scaling.
+  watchNamespace: ""
+  prometheus:
+    metricServer:
+      # Enable the Prometheus metric server to expose Keda metrics for HPAs.
+      enabled: true
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+rabbitmq:
+  enabled: false
+  auth:
+    username: user
+    password: pass
+    erlangCookie: secretcookie
+  clustering:
+    enabled: false
+  persistence:
+    enabled: false
+  metrics:
+    enabled: true
+    serviceMonitor:
+      default:
+        enabled: true
+        interval: 30s
+        scrapeTimeout: 15s
+        labels:
+          release: monitoring
+      perObject:
+        enabled: true
+        interval: 10s
+        labels:
+          release: monitoring
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 400m
+      memory: 512Mi
+
+redis:
+  enabled: false
+  architecture: standalone
+  auth:
+    enabled: false
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+      interval: 30s
+      scrapeTimeout: 15s
+      labels:
+        release: monitoring
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 200m
+      memory: 512Mi
+
+minio:
+  enabled: false
+  # Example MinIO configuration.  Adjust resources and service settings
+  # according to your storage needs.  By default MinIO uses a single
+  # replica with no persistence for demonstration purposes.
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 200m
+      memory: 512Mi
+
+## Worker‑Pool Operator #######################################################
+
+wpokOperator:
+  # Enable or disable deployment of the worker‑pool operator.
+  enabled: true
+
+  # Container image and pull policy for the operator.  Update the image
+  # tag to the version corresponding to your operator implementation.
+  image: worker-pool-operator:0.2.6
+  imagePullPolicy: IfNotPresent
+
+  # Node selector for the operator pod.  Leave empty to schedule on any node.
+  nodeSelector: {}
+
+  # Resource requests and limits for the operator.  These defaults assume a
+  # moderate workload.  Increase memory when processing many WorkerPool
+  # resources in parallel.
+  resources:
+    requests:
+      cpu: 200m
+      memory: 512Mi
+    limits:
+      cpu: 200m
+      memory: 512Mi
+
+  # Logging level for Kopf.  Valid values are DEBUG, INFO, WARNING, ERROR.
+  kopfLogLevel: INFO
+
+  # RabbitMQ API configuration.  `vhost` determines which vhost to use when
+  # interacting with RabbitMQ's HTTP API; the host is derived automatically
+  # from the rabbitmq subchart if enabled, otherwise it defaults to
+  # "rabbitmq".  You can override the full API URL by setting
+  # `rabbitApi.overrideUrl` instead of vhost.
+  rabbitApi:
+    vhost: "/"
+    overrideUrl: ""
+
+  # S3 storage settings used by the worker pods.  When MinIO is enabled the
+  # endpoint should be set to the MinIO service.  `forcePathStyle` is useful
+  # when using S3‑compatible storage on-premises.
+  s3:
+    endpoint: ""
+    forcePathStyle: "1"
+    concurrency: "6"
+    retries: "3"
+
+  # AWS/MinIO credentials to be stored in a Kubernetes secret.  These values
+  # are encoded as plain text in the secret; for production environments
+  # consider using an external secret store or Helm secrets.
+  secrets:
+    aws:
+      accessKey: ""
+      secretKey: ""
+    # Credentials used by the operator to authenticate against the RabbitMQ
+    # management API.  These do not have to match the RabbitMQ "username"
+    # above but must correspond to a user created in RabbitMQ with adequate
+    # permissions.
+    rabbitAdmin:
+      username: user
+      password: pass
+
+  # Optional Kubernetes resources created for WorkerPools.  When enabled,
+  # a PersistentVolumeClaim and a ResourceQuota will be created automatically
+  # in the release namespace.
+  pvc:
+    enabled: true
+    storage: 1Gi
+
+  resourceQuota:
+    enabled: true
+    cpuRequests: "4"
+    memoryRequests: "6Gi"
+    cpuLimits: "4"
+    memoryLimits: "6Gi"
+
+  # Custom templates used by the operator to construct WorkerPool children.
+  # These templates closely follow those in the upstream hyperflow chart but
+  # have been adjusted for WPOK (renamed environment variables etc.).  They
+  # can be overridden by the user to tweak deployment settings.
+  templates:
+    deployment: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: {poolName}
+        namespace: {namespace}
+        labels:
+          app: {poolName}
+      spec:
+        replicas: {minReplicas}
+        selector:
+          matchLabels:
+            app: {poolName}
+        template:
+          metadata:
+            labels:
+              app: {poolName}
+          spec:
+            terminationGracePeriodSeconds: 300
+            # Override nodeSelector here if worker pods should run on specific
+            # nodes (e.g. GPU nodes).  If not specified, the scheduler
+            # determines placement.
+            # nodeSelector:
+            #   key: value
+            containers:
+              - name: worker
+                image: {image}
+                imagePullPolicy: IfNotPresent
+                env:
+                  - name: QUEUE_NAME
+                    value: {queueName}
+                  - name: RABBIT_HOSTNAME
+                    value: {rabbitHostname}
+                  - name: REDIS_URL
+                    value: {redisUrl}
+                  - name: RABBIT_PREFETCH_SIZE
+                    value: "1"
+                  - name: HF_VAR_WORK_DIR
+                    value: /work_dir
+                  - name: HF_VAR_INPUT_DIR
+                    value: /work_dir/input
+                  - name: HF_VAR_OUTPUT_DIR
+                    value: /work_dir/output
+                  - name: HF_VAR_WAIT_FOR_INPUT_FILES
+                    value: "0"
+                  - name: HF_VAR_NUM_RETRIES
+                    value: "1"
+                  - name: HF_LOG_NODE_NAME
+                    valueFrom:
+                      fieldRef:
+                        apiVersion: v1
+                        fieldPath: spec.nodeName
+                  - name: HF_LOG_POD_NAME
+                    valueFrom:
+                      fieldRef:
+                        apiVersion: v1
+                        fieldPath: metadata.name
+                  - name: HF_LOG_POD_NAMESPACE
+                    valueFrom:
+                      fieldRef:
+                        apiVersion: v1
+                        fieldPath: metadata.namespace
+                  - name: HF_LOG_POD_IP
+                    valueFrom:
+                      fieldRef:
+                        apiVersion: v1
+                        fieldPath: status.podIP
+                  - name: HF_LOG_POD_SERVICE_ACCOUNT
+                    valueFrom:
+                      fieldRef:
+                        apiVersion: v1
+                        fieldPath: spec.serviceAccountName
+                  # The following variables control S3/MinIO behaviour and
+                  # integrate with WPOK.  If you are using a different
+                  # workflow executor, rename these variables accordingly.
+                  - name: AWS_ACCESS_KEY_ID
+                    valueFrom:
+                      secretKeyRef:
+                        name: wpok-aws
+                        key: accessKey
+                  - name: AWS_SECRET_ACCESS_KEY
+                    valueFrom:
+                      secretKeyRef:
+                        name: wpok-aws
+                        key: secretKey
+                  - name: AWS_DEFAULT_REGION
+                    value: us-east-1
+                  - name: HF_S3_ENDPOINT
+                    value: http://minio.{namespace}.svc.cluster.local:9000
+                  - name: HF_S3_FORCE_PATH_STYLE
+                    value: "1"
+                  - name: HF_S3_CONCURRENCY
+                    value: "6"
+                  - name: HF_S3_RETRIES
+                    value: "3"
+                resources:
+                  requests:
+                    cpu: {cpuRequests}
+                    memory: {memoryRequests}
+                  limits:
+                    cpu: {cpuRequests}
+                    memory: {memoryRequests}
+                volumeMounts:
+                  - mountPath: /work_dir
+                    name: my-pvc-nfs
+                workingDir: /work_dir
+                lifecycle:
+                  preStop:
+                    exec:
+                      command: ["sh", "-c", "sleep 5"]
+            volumes:
+              - name: my-pvc-nfs
+                persistentVolumeClaim:
+                  claimName: nfs
+    scaledobject: |-
+      apiVersion: keda.sh/v1alpha1
+      kind: ScaledObject
+      metadata:
+        name: {poolName}
+        namespace: {namespace}
+        labels:
+          name: {poolName}
+      spec:
+        scaleTargetRef:
+          name: {poolName}
+        pollingInterval: 3
+        cooldownPeriod:  120
+        minReplicaCount: {minReplicaCount}
+        triggers:
+          - type: prometheus
+            metadata:
+              serverAddress: {prometheusUrl}
+              metricName: {poolNameUnderscored}:replication_factor
+              threshold: "1"
+              query: {poolNameUnderscored}:replication_factor{{}}
+        advanced:
+          horizontalPodAutoscalerConfig:
+            behavior:
+              scaleUp:
+                stabilizationWindowSeconds: 0
+                policies:
+                  - periodSeconds: 5
+                    type: Pods
+                    value: 50
+              scaleDown:
+                stabilizationWindowSeconds: 0
+                policies:
+                  - periodSeconds: 30
+                    type: Pods
+                    value: 50
+    prometheusRule: |-
+      apiVersion: monitoring.coreos.com/v1
+      kind: PrometheusRule
+      metadata:
+        name: {poolName}
+        namespace: {namespace}
+        labels:
+          prometheus: kube-prometheus
+          release: monitoring
+      spec:
+        groups:
+          - name: "{poolName}-replication-factor"
+            interval: 3s
+            rules:
+              - record: {poolNameUnderscored}:replication_factor
+                expr: |
+                    clamp_max(
+                      ceil(
+                        0.9
+                        *
+                        sum(rabbitmq_queue_messages{{job="rabbitmq", queue="{queueName}"}})
+                        /
+                        max(rabbitmq_queue_messages{{job="rabbitmq"}} or vector(1))
+                        *
+                        min(
+                          floor(kube_resourcequota{{namespace="{namespace}", resource="requests.cpu", type="hard"}} / {cpuLimits})
+                          or
+                          floor(kube_resourcequota{{namespace="{namespace}", resource="requests.memory", type="hard"}} / {memoryLimits})
+                        )
+                      ),
+                      scalar(rabbitmq_queue_messages{{job="rabbitmq", queue="{queueName}"}})
+                    )
+                labels:
+                  namespace: {namespace}
+                  service: {poolName}
+
+# Control installation of CRDs when using this chart.  When true the chart will
+# install/update the WorkerPool CRD; when false the CRD must exist ahead of
+# time.  Installing the CRD requires cluster‑wide privileges.
+crds:
+  create: true
