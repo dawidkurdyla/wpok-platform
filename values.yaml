@@ -16,7 +16,7 @@ namespace: ""
 ## Subchart configuration #####################################################
 
 kube-prometheus-stack:
-  enabled: false
+  enabled: true
   grafana:
     enabled: true
   prometheus:
@@ -37,7 +37,7 @@ kube-prometheus-stack:
       memory: 512Mi
 
 keda:
-  enabled: false
+  enabled: true
   # Namespace that Keda watches for scaled objects.  Leave empty to watch all
   # namespaces; set to the operator namespace for scoped scaling.
   watchNamespace: ""
@@ -54,7 +54,7 @@ keda:
       memory: 256Mi
 
 rabbitmq:
-  enabled: false
+  enabled: true
   auth:
     username: user
     password: pass
@@ -86,7 +86,7 @@ rabbitmq:
       memory: 512Mi
 
 redis:
-  enabled: false
+  enabled: true
   architecture: standalone
   auth:
     enabled: false

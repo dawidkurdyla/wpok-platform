@@ -1,0 +1,18 @@
+dependencies:
+- name: kube-prometheus-stack
+  repository: https://prometheus-community.github.io/helm-charts
+  version: 75.15.0
+- name: keda
+  repository: https://kedacore.github.io/charts
+  version: 2.17.2
+- name: rabbitmq
+  repository: https://charts.bitnami.com/bitnami
+  version: 16.0.11
+- name: redis
+  repository: https://charts.bitnami.com/bitnami
+  version: 21.2.13
+- name: minio
+  repository: https://charts.bitnami.com/bitnami
+  version: 17.0.21
+digest: sha256:deeefc81568dd3efcce26489d4d8af6e2d21d6c64f73b81aaa0d926cbfd9284f
+generated: "2025-08-29T23:30:06.877704+02:00"

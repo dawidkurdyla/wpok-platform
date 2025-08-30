@@ -9,9 +9,9 @@ metadata:
     app.kubernetes.io/component: operator
 data:
   deployment.yml: |-
-{{ tpl .Values.wpokOperator.templates.deployment . | indent 4 }}
+{{- .Values.wpokOperator.templates.deployment | nindent 4 }}
   scaledobject.yml: |-
-{{ tpl .Values.wpokOperator.templates.scaledobject . | indent 4 }}
+{{- .Values.wpokOperator.templates.scaledobject | nindent 4 }}
   prometheus-rule.yml: |-
-{{ tpl .Values.wpokOperator.templates.prometheusRule . | indent 4 }}
+{{- .Values.wpokOperator.templates.prometheusRule | nindent 4 }}
 {{- end }}

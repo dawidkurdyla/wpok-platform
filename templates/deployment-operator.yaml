@@ -53,13 +53,13 @@ spec:
                   key: password
             - name: RABBIT_INSECURE
               value: "0"
-            - name: WPOK_S3_ENDPOINT
+            - name: HF_S3_ENDPOINT
               value: {{ .Values.wpokOperator.s3.endpoint | quote }}
-            - name: WPOK_S3_FORCE_PATH_STYLE
+            - name: HF_S3_FORCE_PATH_STYLE
               value: {{ .Values.wpokOperator.s3.forcePathStyle | quote }}
-            - name: WPOK_S3_CONCURRENCY
+            - name: HF_S3_CONCURRENCY
               value: {{ .Values.wpokOperator.s3.concurrency | quote }}
-            - name: WPOK_S3_RETRIES
+            - name: HF_S3_RETRIES
               value: {{ .Values.wpokOperator.s3.retries | quote }}
             - name: AWS_ACCESS_KEY_ID
               valueFrom:
