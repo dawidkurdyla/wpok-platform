@@ -29,12 +29,8 @@ kube-prometheus-stack:
       serviceMonitorSelectorNilUsesHelmValues: false
   # Default resource requests/limits for the core pods of the Prometheus stack.
   resources:
-    requests:
-      cpu: 200m
-      memory: 256Mi
-    limits:
-      cpu: 400m
-      memory: 512Mi
+      requests: { cpu: 200m,  memory: 256Mi }
+      limits:   { cpu: 500m, memory: 512Mi }
 
 keda:
   enabled: true
@@ -48,7 +44,7 @@ keda:
   resources:
     requests:
       cpu: 100m
-      memory: 128Mi
+      memory: 100Mi
     limits:
       cpu: 200m
       memory: 256Mi
@@ -63,6 +59,13 @@ rabbitmq:
     enabled: false
   persistence:
     enabled: false
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: "500m"
+      memory: 512Mi
   metrics:
     enabled: true
     serviceMonitor:
@@ -77,16 +80,16 @@ rabbitmq:
         interval: 10s
         labels:
           release: monitoring
-  resources:
-    requests:
-      cpu: 200m
-      memory: 256Mi
-    limits:
-      cpu: 400m
-      memory: 512Mi
 
 redis:
   enabled: true
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 200m
+      memory: 512Mi
   architecture: standalone
   auth:
     enabled: false
@@ -98,13 +101,6 @@ redis:
       scrapeTimeout: 15s
       labels:
         release: monitoring
-  resources:
-    requests:
-      cpu: 100m
-      memory: 256Mi
-    limits:
-      cpu: 200m
-      memory: 512Mi
 
 minio:
   enabled: false
@@ -189,10 +185,10 @@ wpokOperator:
 
   resourceQuota:
     enabled: true
-    cpuRequests: "4"
-    memoryRequests: "6Gi"
-    cpuLimits: "4"
-    memoryLimits: "6Gi"
+    cpuRequests: "8"
+    memoryRequests: "8Gi"
+    cpuLimits: "8"
+    memoryLimits: "8Gi"
 
   # Custom templates used by the operator to construct WorkerPool children.
   # These templates closely follow those in the upstream hyperflow chart but
@@ -242,6 +238,8 @@ wpokOperator:
                     value: /work_dir/input
                   - name: HF_VAR_OUTPUT_DIR
                     value: /work_dir/output
+                  - name: HF_AMQP_DECLARE_QUEUE
+                    value: "0"
                   - name: HF_VAR_WAIT_FOR_INPUT_FILES
                     value: "0"
                   - name: HF_VAR_NUM_RETRIES
@@ -369,9 +367,9 @@ wpokOperator:
                       ceil(
                         0.9
                         *
-                        sum(rabbitmq_queue_messages{{job="rabbitmq", queue="{queueName}"}})
+                        sum(rabbitmq_queue_messages{{job="wpok-rabbitmq", queue="{queueName}"}})
                         /
-                        max(rabbitmq_queue_messages{{job="rabbitmq"}} or vector(1))
+                        max(rabbitmq_queue_messages{{job="wpok-rabbitmq"}} or vector(1))
                         *
                         min(
                           floor(kube_resourcequota{{namespace="{namespace}", resource="requests.cpu", type="hard"}} / {cpuLimits})
@@ -379,7 +377,7 @@ wpokOperator:
                           floor(kube_resourcequota{{namespace="{namespace}", resource="requests.memory", type="hard"}} / {memoryLimits})
                         )
                       ),
-                      scalar(rabbitmq_queue_messages{{job="rabbitmq", queue="{queueName}"}})
+                      scalar(rabbitmq_queue_messages{{job="wpok-rabbitmq", queue="{queueName}"}})
                     )
                 labels:
                   namespace: {namespace}

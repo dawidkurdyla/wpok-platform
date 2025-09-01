@@ -8,6 +8,8 @@ metadata:
     app.kubernetes.io/name: {{ include "wpok.fullname" . }}
     app.kubernetes.io/component: operator
 spec:
+  scopes:
+    - NotBestEffort
   hard:
     requests.cpu: {{ .Values.wpokOperator.resourceQuota.cpuRequests | quote }}
     requests.memory: {{ .Values.wpokOperator.resourceQuota.memoryRequests | quote }}
