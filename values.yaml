@@ -114,6 +114,16 @@ minio:
     limits:
       cpu: 200m
       memory: 512Mi
+  
+# longhorn:
+#   install: false            # set to true to install Longhorn from this chart
+#   namespace: longhorn-system
+#   # name of the StorageClass used by the operator’s PVC; after installing Longhorn
+#   # the default generated storageClass is "longhorn", can be changed
+#   storageClass: longhorn
+#   # access mode of the volume; RWX allows mounting on multiple nodes
+#   accessMode: ReadWriteMany
+
 
 ## Worker‑Pool Operator #######################################################
 
@@ -123,8 +133,8 @@ wpokOperator:
 
   # Container image and pull policy for the operator.  Update the image
   # tag to the version corresponding to your operator implementation.
-  image: worker-pool-operator:0.2.6
-  imagePullPolicy: IfNotPresent
+  image: dkurdyla/wpok-operator:0.2.7
+  imagePullPolicy: Always
 
   # Node selector for the operator pod.  Leave empty to schedule on any node.
   nodeSelector: {}
@@ -241,7 +251,9 @@ wpokOperator:
                   - name: HF_AMQP_DECLARE_QUEUE
                     value: "0"
                   - name: HF_VAR_WAIT_FOR_INPUT_FILES
-                    value: "0"
+                    value: "1"
+                  - name: HF_VAR_USE_S3_IO
+                    value: "1"
                   - name: HF_VAR_NUM_RETRIES
                     value: "1"
                   - name: HF_LOG_NODE_NAME
@@ -365,11 +377,9 @@ wpokOperator:
                 expr: |
                     clamp_max(
                       ceil(
-                        0.9
-                        *
                         sum(rabbitmq_queue_messages{{job="wpok-rabbitmq", queue="{queueName}"}})
                         /
-                        max(rabbitmq_queue_messages{{job="wpok-rabbitmq"}} or vector(1))
+                        clamp_min( sum(rabbitmq_queue_messages{{job="wpok-rabbitmq"}}) OR vector(0), 1 )
                         *
                         min(
                           floor(kube_resourcequota{{namespace="{namespace}", resource="requests.cpu", type="hard"}} / {cpuLimits})

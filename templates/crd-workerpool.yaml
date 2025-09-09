@@ -91,6 +91,21 @@ spec:
                           type: string
                   required:
                     - requests
+                env:
+                  type: array
+                  description: List of additional environment variables to inject into each worker pod.
+                  items:
+                    type: object
+                    required: [name]
+                    properties:
+                      name:
+                        type: string
+                      value:
+                        type: string
+                      valueFrom:
+                        type: object
+                        x-kubernetes-preserve-unknown-fields: true
+                  x-kubernetes-preserve-unknown-fields: true
               required:
                 - taskType
                 - image

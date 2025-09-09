@@ -1,0 +1,12 @@
+# wpok-rwx.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: wpok-rwx
+  namespace: wpok
+spec:
+  accessModes: ["ReadWriteMany"]
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 20Gi
