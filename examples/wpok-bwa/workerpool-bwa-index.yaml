@@ -1,0 +1,33 @@
+apiVersion: hyperflow.agh.edu.pl/v1
+kind: WorkerPool
+metadata:
+  name: bwa-index-pool
+  namespace: wpok
+spec:
+  taskType: bwa-index
+  image: dkurdyla/wpok-bwa-worker:1.0.1
+  rabbitHostname: user:pass@wpok-rabbitmq.wpok.svc.cluster.local:5672/
+  redisUrl: redis://wpok-redis-master.wpok.svc.cluster.local:6379
+  prometheusUrl: http://wpok-kube-prometheus-stack-prometheus.wpok.svc.cluster.local:9090
+  minReplicaCount: 0
+  maxReplicaCount: 1
+  initialResources:
+    requests:
+      cpu: "3"
+      memory: "7442450944"   # 6 GiB
+    limits:
+      cpu: "3"
+      memory: "7442450944"   # 6 GiB
+  env:
+    - name: HF_VAR_WORK_DIR
+      value: /shared_nfs
+    - name: HF_VAR_INPUT_DIR
+      value: /shared_nfs/bwa-reference
+    - name:  /shared_nfs/bwa-reference
+      value: /work_dir/output
+    - name: HF_VAR_WAIT_FOR_INPUT_FILES
+      value: "1"
+    - name: HF_TASK_CLEANUP_LOCAL
+      value: "0"
+    - name: HF_VAR_USE_S3_IO
+      value: "1"

@@ -1,0 +1,33 @@
+apiVersion: hyperflow.agh.edu.pl/v1
+kind: WorkerPool
+metadata:
+  name: bwa-align
+  namespace: wpok
+spec:
+  taskType: bwa-align
+  image: dkurdyla/wpok-bwa-worker:1.0.1
+  rabbitHostname: user:pass@wpok-rabbitmq.wpok.svc.cluster.local:5672/
+  redisUrl: redis://wpok-redis-master.wpok.svc.cluster.local:6379
+  prometheusUrl: http://wpok-kube-prometheus-stack-prometheus.wpok.svc.cluster.local:9090
+  minReplicaCount: 0
+  maxReplicaCount: 100
+  initialResources:
+    requests:
+      cpu: "2"
+      memory: "6442450944"     # 6 GiB
+    limits:
+      cpu: "2"
+      memory: "6442450944"     # 6 GiB
+  env:
+    - name: HF_VAR_WORK_DIR
+      value: /work_dir
+    - name: HF_VAR_INPUT_DIR
+      value: /work_dir/input
+    - name: HF_VAR_OUTPUT_DIR
+      value: /work_dir/output
+    - name: HF_VAR_WAIT_FOR_INPUT_FILES
+      value: "1"
+    - name: HF_TASK_CLEANUP_LOCAL
+      value: "1"
+    - name: HF_VAR_USE_S3_IO
+      value: "1"

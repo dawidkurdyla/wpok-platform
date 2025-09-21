@@ -1,0 +1,77 @@
+apiVersion: hyperflow.agh.edu.pl/v1
+kind: WorkerPool
+metadata:
+  name: asr-whisper-large
+  namespace: wpok
+spec:
+  taskType: asr-whisper-large
+  image: dkurdyla/wpok-whisper-worker:0.1.0 
+  rabbitHostname: user:pass@wpok-rabbitmq.wpok.svc.cluster.local:5672/
+  redisUrl: redis://wpok-redis-master.wpok.svc.cluster.local:6379
+  prometheusUrl: http://wpok-kube-prometheus-stack-prometheus.wpok.svc.cluster.local:9090
+  minReplicaCount: 0
+  maxReplicaCount: 100
+
+  # resources for "base" model
+  initialResources:
+    requests:
+      cpu: "2"
+      memory: "4294967296"     # 4 GiB
+    limits:
+      cpu: "2"
+      memory: "4294967296"     # 4 GiB
+
+  env:
+    # Ścieżki pracy
+    - name: HF_VAR_WORK_DIR
+      value: /work_dir
+    - name: HF_VAR_INPUT_DIR
+      value: /work_dir/input
+    - name: HF_VAR_OUTPUT_DIR
+      value: /work_dir/output
+    - name: HF_VAR_WAIT_FOR_INPUT_FILES
+      value: "1"
+    - name: HF_TASK_CLEANUP_LOCAL
+      value: "1"
+      
+    - name: OMP_NUM_THREADS
+      value: "3"
+
+
+# memory: "2147483648"     # 2 GiB
+# memory: "2684354560"     # 2.5 GiB
+# memory: "3221225472"     # 3 GiB
+# memory: "4294967296"     # 4 GiB
+# memory: "6442450944"     # 6 GiB
+
+
+
+# SMALL
+  # initialResources:
+  #   requests:
+  #     cpu: "1"
+  #     memory: "2684354560"     # 2.5 GiB
+  #   limits:
+  #     cpu: "1"
+  #     memory: "2684354560"     # 2.5 GiB
+
+
+
+# Medium
+  # initialResources:
+  #   requests:
+  #     cpu: "2"
+  #     memory: "4294967296"     # 4 GiB
+  #   limits:
+  #     cpu: "2"
+  #     memory: "4294967296"     # 4 GiB
+
+
+# Large
+    # initialResources:
+      # requests:
+      #   cpu: "3"
+      #   memory: "6442450944"     # 6 GiB
+      # limits:
+      #   cpu: "3"
+      #   memory: "6442450944"     # 6 GiB

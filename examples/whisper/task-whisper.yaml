@@ -1,0 +1,41 @@
+apiVersion: v1
+kind: Task
+metadata:
+  name: asr-whisper
+spec:
+  taskType: asr-whisper-large
+  name: whisper-ctranslate2
+  executable: whisper-ctranslate2
+  args:
+    - "{in}"
+    - --model
+    - base
+    - --language
+    - pl
+    - --compute_type
+    - int8
+    - --output_dir
+    - "__OUTPUT_DIR__"
+    - --output_format
+    - txt
+    - --vad_filter
+    - "True"
+
+  work_dir: /work_dir
+  input_dir: /work_dir/input
+  output_dir: /work_dir/output
+  io:
+    inputs:
+      - type: s3
+        url: s3://wpok-test-bucket/sound-samples/
+        recursive: true
+        include: ["**/*.mp3","**/*.wav","**/*.m4a","**/*.flac"]
+    output:
+      type: s3
+      url: s3://wpok-test-bucket/whisper-results/
+      overwrite: true
+      layout: "{stem}.txt"
+    batch:
+      enabled: true
+      grouping: object
+      maxPerTask: 1

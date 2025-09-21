@@ -1,0 +1,57 @@
+##
+# WorkerPool definition for ffmpeg workloads on WPOK
+#
+# This Custom Resource defines a pool of workers that will run ffmpeg
+# transcoding tasks.  The `taskType` field must match the queue name
+# referenced by your task manifests.  The `image` should point to the
+# Docker image built from the accompanying Dockerfile (push it to a
+# registry accessible by your cluster).  Adjust `minReplicaCount` and
+# `maxReplicaCount` based on your throughput requirements.  The
+# `initialResources` block specifies per‑worker CPU/memory requests
+# and limits; these values will affect KEDA’s autoscaling logic.
+
+apiVersion: hyperflow.agh.edu.pl/v1
+kind: WorkerPool
+metadata:
+  # Name of this worker pool; must be DNS‑compliant
+  name: ffmpeg-worker
+  namespace: wpok
+spec:
+  # Docker image containing ffmpeg and the HyperFlow job executor.
+  image: dkurdyla/wpok-ffmpeg-worker:1.0.6
+
+  # The AMQP queue name used for tasks targeting this pool.  Each
+  # manifest must set spec.taskType to this value.
+  taskType: ffmpeg
+
+  # Minimum and maximum number of pod replicas.  Setting minReplicaCount
+  # to 0 allows the pool to scale down to zero when idle.
+  minReplicaCount: 0
+  maxReplicaCount: 100
+
+  # Connection details for RabbitMQ, Redis and Prometheus.  These
+  # typically come from the WPOK Helm chart; adjust if you have
+  # different service names or credentials.
+  rabbitHostname: user:pass@wpok-rabbitmq.wpok.svc.cluster.local:5672/   # host RabbitMQ w klastrze
+  redisUrl: redis://wpok-redis-master.wpok.svc.cluster.local:6379  # URL do Redisa
+  prometheusUrl: http://wpok-kube-prometheus-stack-prometheus.wpok.svc.cluster.local:9090
+
+  # Specify per‑worker CPU/memory requests and limits.  The defaults
+  # below are tuned for transcoding 4K H.264 to H.264/AAC using two
+  # vCPUs and 4 GiB of RAM, which provides reasonable performance on
+  # modern hardware.  See the accompanying documentation for
+  # alternative sizing options.
+  initialResources:
+    requests:
+      cpu: "3"
+      memory: "6442450944"     # 6 GiB
+    limits:
+      cpu: "3"
+      memory: "6442450944"     # 6 GiB
+  # Optionally override queue parameters.  When omitted, the queue
+  # name defaults to `taskType` and standard durable settings are used.
+  # queue:
+  #   name: ffmpeg
+  #   vhost: "/"
+  #   durable: true
+  #   autoDelete: false

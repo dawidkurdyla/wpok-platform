@@ -1,0 +1,43 @@
+apiVersion: v1
+kind: Task
+metadata:
+  name: bwa-align
+spec:
+  taskType: bwa-align
+  name: bwa-align
+  executable: bash
+  args:
+    - -c
+    - |
+      #!/usr/bin/env bash
+      set -euo pipefail
+      IN="${1:-$0}"
+      REF="/shared_nfs/bwa-reference/GRCh38.primary_assembly.genome.fa"
+
+      exec bwa mem -t "${THREADS:-3}" "$REF" "$IN" > "__OUTPUT_DIR__/result.sam"
+    - "_"        
+    - "{in}"
+  outputs:
+    - name: "result.sam"
+      workflow_output: true
+
+  work_dir: /work_dir
+  input_dir: /work_dir/input
+  output_dir: /work_dir/output
+
+  io:
+    inputs:
+      - type: s3
+        url: s3://wpok-test-bucket/bwa-demo/reads/
+        recursive: true
+        include: ["**/*.fq", "**/*.fastq", "**/*.fastq.gz", "**/*.fq.gz"]
+        exclude: []
+    output:
+      type: s3
+      url: s3://wpok-test-bucket/bwa-demo/aligned-results/
+      overwrite: true
+      layout: "{stem}.sam"
+    batch:
+      enabled: true
+      grouping: object
+      maxPerTask: 1

@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: Task
+metadata:
+  name: bwa-index
+spec:
+  taskType: bwa-index
+  name: bwa-index
+  executable: bwa
+  args:
+    - index
+    - -p
+    - /shared_nfs/bwa-reference/GRCh38.primary_assembly.genome.fa
+    - "{in}"
+
+  work_dir: /shared_nfs
+  input_dir: /shared_nfs/bwa-reference
+  output_dir: /shared_nfs/output 
+
+  io:
+    inputs:
+      - type: s3
+        url: s3://wpok-test-bucket/bwa-demo/reference/
+        recursive: true
+        include: ["**/*.fa", "**/*.fasta"]
+        exclude: []
+    batch:
+      enabled: true
+      grouping: object
+      maxPerTask: 1

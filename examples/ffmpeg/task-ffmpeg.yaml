@@ -1,0 +1,83 @@
+##
+# Example Task manifest for ffmpeg transcoding on WPOK
+#
+# This manifest submits a transcoding job per input object stored in
+# S3/MinIO.  It calls `ffmpeg` directly from the worker image.  All
+# encoding parameters are passed via the `args` array, so you can
+# customise codecs, bitrates or other options.  
+# When batching is enabled with `grouping=object` and
+# `maxPerTask=1` (default), each video becomes its own task.  The
+# output layout uses `{stem}.mp4` so that each result file is named
+# after the input (without its extension).  Replace bucket URLs with
+# your own locations.
+
+apiVersion: v1
+kind: Task
+metadata:
+  name: ffmpeg
+spec:
+  taskType: ffmpeg
+  name: ffmpeg
+  executable: ffmpeg
+  args:
+    - "-hide_banner"
+    - "-y"
+    - "-i"
+    - "{in}"
+    - "-map"
+    - "0:v:0"
+    - "-map"
+    - "0:a?"
+    - "-c:v"
+    - "libx265"
+    - "-preset"
+    - "veryfast"
+    - "-crf"
+    - "28"
+    - "-x265-params"
+    - "pools=3:frame-threads=3"
+    - "-c:a"
+    - "copy"
+    - "-movflags"
+    - "+faststart"
+    - "__OUTPUT_DIR__/output.mp4"
+
+  # Working directories used inside the container.  input_dir and
+  # output_dir can be the same; the executor mounts them under
+  # `/work_dir` by default.
+  work_dir: /work_dir
+  input_dir: /work_dir/inputs
+  output_dir: /work_dir/outputs
+
+  outputs:
+    - name: "output.mp4"
+      workflow_output: true
+
+  io:
+    inputs:
+      - type: s3
+        # Prefix containing your source videos.  Upload your
+        # benchmark files (e.g. 4 K demos) here.  The prefix should
+        # end with a slash when referring to a “folder”.
+        url: s3://wpok-test-bucket/ffmpeg-test-files/
+        recursive: true
+        include:
+          # Match common video formats.  Extend this list if needed.
+          - "**/*.mp4"
+          - "**/*.mkv"
+          - "**/*.mov"
+        exclude: []
+    output:
+      type: s3
+      # Prefix where transcoded files will be stored.  Must end with a slash.
+      url: s3://wpok-test-bucket/ffmpeg-results/
+      overwrite: true
+      # Use {stem}.mp4 to preserve the base name of each input.
+      layout: "{stem}.mp4"
+    batch:
+      # Enable batching so that the client library produces one task per object.
+      enabled: true
+      grouping: object
+      # Process only one file per task.  You can increase this value to pack
+      # multiple inputs into a single ffmpeg invocation
+      maxPerTask: 1
