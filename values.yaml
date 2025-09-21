@@ -80,6 +80,8 @@ rabbitmq:
         interval: 10s
         labels:
           release: monitoring
+  extraConfiguration: |-
+    consumer_timeout = 21600000
 
 redis:
   enabled: true
@@ -133,7 +135,7 @@ wpokOperator:
 
   # Container image and pull policy for the operator.  Update the image
   # tag to the version corresponding to your operator implementation.
-  image: dkurdyla/wpok-operator:0.2.7
+  image: dkurdyla/wpok-operator:0.2.8
   imagePullPolicy: Always
 
   # Node selector for the operator pod.  Leave empty to schedule on any node.
@@ -190,8 +192,8 @@ wpokOperator:
   # a PersistentVolumeClaim and a ResourceQuota will be created automatically
   # in the release namespace.
   pvc:
-    enabled: true
-    storage: 1Gi
+    enabled: false
+    # storage: 1Gi
 
   resourceQuota:
     enabled: true
@@ -248,9 +250,13 @@ wpokOperator:
                     value: /work_dir/input
                   - name: HF_VAR_OUTPUT_DIR
                     value: /work_dir/output
+                  - name: HF_VAR_LOG_DIR
+                    value: /shared_nfs/logs-hf
                   - name: HF_AMQP_DECLARE_QUEUE
                     value: "0"
                   - name: HF_VAR_WAIT_FOR_INPUT_FILES
+                    value: "1"
+                  - name: HF_TASK_CLEANUP_LOCAL
                     value: "1"
                   - name: HF_VAR_USE_S3_IO
                     value: "1"
@@ -295,9 +301,9 @@ wpokOperator:
                         name: wpok-aws
                         key: secretKey
                   - name: AWS_DEFAULT_REGION
-                    value: us-east-1
+                    value: eu-central-1
                   - name: HF_S3_ENDPOINT
-                    value: http://minio.{namespace}.svc.cluster.local:9000
+                    value: "https://eu-central-1.linodeobjects.com"
                   - name: HF_S3_FORCE_PATH_STYLE
                     value: "1"
                   - name: HF_S3_CONCURRENCY
@@ -313,16 +319,23 @@ wpokOperator:
                     memory: {memoryRequests}
                 volumeMounts:
                   - mountPath: /work_dir
+                    name: workdir              
+                  - mountPath: /shared_nfs
                     name: my-pvc-nfs
                 workingDir: /work_dir
                 lifecycle:
+                  postStart:
+                    exec:
+                      command: ["sh", "-c", "mkdir -p /work_dir/input /work_dir/output"]
                   preStop:
                     exec:
                       command: ["sh", "-c", "sleep 5"]
             volumes:
+              - name: workdir
+                emptyDir: {{}}
               - name: my-pvc-nfs
                 persistentVolumeClaim:
-                  claimName: nfs
+                  claimName: wpok-rwx
     scaledobject: |-
       apiVersion: keda.sh/v1alpha1
       kind: ScaledObject
@@ -348,17 +361,25 @@ wpokOperator:
           horizontalPodAutoscalerConfig:
             behavior:
               scaleUp:
-                stabilizationWindowSeconds: 0
+                stabilizationWindowSeconds: 30
+                selectPolicy: Max
                 policies:
-                  - periodSeconds: 5
-                    type: Pods
-                    value: 50
+                  - type: Percent
+                    value: 100
+                    periodSeconds: 30
+                  - type: Pods
+                    value: 20
+                    periodSeconds: 30
               scaleDown:
-                stabilizationWindowSeconds: 0
+                stabilizationWindowSeconds: 300
+                selectPolicy: Max
                 policies:
-                  - periodSeconds: 30
-                    type: Pods
-                    value: 50
+                  - type: Percent
+                    value: 30
+                    periodSeconds: 60
+                  - type: Pods
+                    value: 10
+                    periodSeconds: 60
     prometheusRule: |-
       apiVersion: monitoring.coreos.com/v1
       kind: PrometheusRule
@@ -377,9 +398,9 @@ wpokOperator:
                 expr: |
                     clamp_max(
                       ceil(
-                        sum(rabbitmq_queue_messages{{job="wpok-rabbitmq", queue="{queueName}"}})
+                        sum(rabbitmq_queue_messages{{job="wpok-rabbitmq", queue="{queueName}", vhost="/"}})
                         /
-                        clamp_min( sum(rabbitmq_queue_messages{{job="wpok-rabbitmq"}}) OR vector(0), 1 )
+                        clamp_min( sum(rabbitmq_queue_messages{{job="wpok-rabbitmq", vhost="/"}}) OR vector(0), 1 )
                         *
                         min(
                           floor(kube_resourcequota{{namespace="{namespace}", resource="requests.cpu", type="hard"}} / {cpuLimits})

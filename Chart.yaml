@@ -35,11 +35,11 @@ dependencies:
     repository: https://charts.bitnami.com/bitnami
     condition: redis.enabled
 
-  # S3 compatible storage (MinIO)
-  - name: minio
-    version: 17.0.21
-    repository: https://charts.bitnami.com/bitnami
-    condition: minio.enabled
+  # # S3 compatible storage (MinIO)
+  # - name: minio
+  #   version: 17.0.21
+  #   repository: https://charts.bitnami.com/bitnami
+  #   condition: minio.enabled
 
   # # Distributed block storage; required for RWX PVC
   # - name: longhorn

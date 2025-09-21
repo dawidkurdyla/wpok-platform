@@ -1,0 +1,26 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: pvc-wipe-logs-hf
+  namespace: wpok
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      volumes:
+        - name: work
+          persistentVolumeClaim:
+            claimName: wpok-rwx
+      containers:
+        - name: rm
+          image: alpine:3.19
+          command: ["/bin/sh","-ceu"]
+          args:
+            - |
+              set -o pipefail
+              mkdir -p /mnt/logs-hf
+              find /mnt/logs-hf -mindepth 1 -delete
+          volumeMounts:
+            - name: work
+              mountPath: /mnt
+ 
